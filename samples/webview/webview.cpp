@@ -12,6 +12,9 @@
 
 // For compilers that support precompilation, includes "wx/wx.h".
 #include "wx/wxprec.h"
+// #define wxUSE_WEBVIEW_WEBKIT 0
+#define wxUSE_WEBVIEW_IE 0
+#define wxUSE_WEBVIEW_EDGE_C 1
 
 #ifdef __BORLANDC__
     #pragma hdrstop
@@ -21,7 +24,7 @@
     #include "wx/wx.h"
 #endif
 
-#if !wxUSE_WEBVIEW_WEBKIT && !wxUSE_WEBVIEW_WEBKIT2 && !wxUSE_WEBVIEW_IE
+#if !wxUSE_WEBVIEW_WEBKIT && !wxUSE_WEBVIEW_WEBKIT2 && !wxUSE_WEBVIEW_IE && !wxUSE_WEBVIEW_EDGE_C
 #error "A wxWebView backend is required by this sample"
 #endif
 
@@ -33,6 +36,10 @@
 #if wxUSE_WEBVIEW_IE
 #include "wx/msw/webview_ie.h"
 #endif
+#if wxUSE_WEBVIEW_EDGE_C
+#include "wx/msw/webview_edgec.h"
+#endif
+
 #include "wx/webviewarchivehandler.h"
 #include "wx/webviewfshandler.h"
 #include "wx/infobar.h"
@@ -365,7 +372,7 @@ WebFrame::WebFrame(const wxString& url) :
     topsizer->Add(m_info, wxSizerFlags().Expand());
 
     // Create the webview
-    m_browser = wxWebView::New(this, wxID_ANY, url);
+    m_browser = wxWebView::New(this, wxID_ANY, url, wxDefaultPosition, wxDefaultSize, wxWebViewBackendEdgeC);
     topsizer->Add(m_browser, wxSizerFlags().Expand().Proportion(1));
 
     //We register the wxfs:// protocol for testing purposes

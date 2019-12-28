@@ -2833,6 +2833,7 @@ set(HTML_CMN_HDR
 
 set(WEBVIEW_MSW_SRC
     src/msw/webview_ie.cpp
+    src/msw/webview_edgec.cpp
 )
 
 set(WEBVIEW_CMN_SRC

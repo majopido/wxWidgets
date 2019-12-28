@@ -41,7 +41,10 @@ typedef HRESULT (__stdcall *PFNWXROINITIALIZE)(RO_INIT_TYPE initType);
 typedef void (__stdcall *PFNWXROUNINITIALIZE)();
 typedef HRESULT (__stdcall *PFNWXROGETACTIVATIONFACTORY)(
     HSTRING activatableClassId, REFIID iid, void ** factory);
-
+typedef HRESULT(__stdcall* PFNWXROACTIVATEINSTANCE)(
+    HSTRING activatableClassId,
+    IInspectable** instance
+    );
 // String function typedefs
 typedef HRESULT (__stdcall *PFNWXWINDOWSCREATESTRINGREFERENCE)(
     PCWSTR sourceString,
@@ -50,6 +53,7 @@ typedef HRESULT (__stdcall *PFNWXWINDOWSCREATESTRINGREFERENCE)(
     HSTRING * string
 );
 typedef HRESULT (__stdcall *PFNWXWINDOWSDELETESTRING)(HSTRING string);
+typedef PCWSTR(__stdcall* PFNWINDOWSGETSTRINGRAWBUFFER)(HSTRING string, UINT32* length);
 
 namespace wxWinRT
 {
@@ -87,8 +91,10 @@ public:
     PFNWXROINITIALIZE RoInitialize;
     PFNWXROUNINITIALIZE RoUninitialize;
     PFNWXROGETACTIVATIONFACTORY RoGetActivationFactory;
+    PFNWXROACTIVATEINSTANCE RoActivateInstance;
     PFNWXWINDOWSCREATESTRINGREFERENCE WindowsCreateStringReference;
     PFNWXWINDOWSDELETESTRING WindowsDeleteString;
+    PFNWINDOWSGETSTRINGRAWBUFFER WindowsGetStringRawBuffer;
 
     bool Initialize()
     {
@@ -114,6 +120,7 @@ public:
         RESOLVE_RTCORE_FUNCTION(PFNWXROINITIALIZE, RoInitialize);
         RESOLVE_RTCORE_FUNCTION(PFNWXROUNINITIALIZE, RoUninitialize);
         RESOLVE_RTCORE_FUNCTION(PFNWXROGETACTIVATIONFACTORY, RoGetActivationFactory);
+        RESOLVE_RTCORE_FUNCTION(PFNWXROACTIVATEINSTANCE, RoActivateInstance);
 
         // Initialize string functions
         if (!m_dllString.Load("api-ms-win-core-winrt-string-l1-1-0.dll"))
@@ -121,7 +128,7 @@ public:
 
         RESOLVE_RTSTRING_FUNCTION(PFNWXWINDOWSCREATESTRINGREFERENCE, WindowsCreateStringReference);
         RESOLVE_RTSTRING_FUNCTION(PFNWXWINDOWSDELETESTRING, WindowsDeleteString);
-
+        RESOLVE_RTSTRING_FUNCTION(PFNWINDOWSGETSTRINGRAWBUFFER, WindowsGetStringRawBuffer);
         return true;
 
 #undef RESOLVE_RT_FUNCTION
@@ -231,6 +238,28 @@ bool GetActivationFactory(const wxString& activatableClassId, REFIID iid, void *
         return true;
 }
 
+bool WXDLLIMPEXP_CORE ActivateInstance(const wxString& activatableClassId, IInspectable** instance)
+{
+    if (!RTCore::IsAvailable())
+        return false;
+
+    HRESULT hr = RTCore::Get().RoActivateInstance(TempStringRef::Make(activatableClassId), instance);
+    if (FAILED(hr))
+    {
+        wxLogDebug("RoActivateInstance failed %.8x", hr);
+        return false;
+    }
+    else
+        return true;
+}
+
+wxString WXDLLIMPEXP_CORE wxStringFromHSTRING(HSTRING str)
+{
+    UINT32 len;
+    PCWSTR wstr = RTCore::Get().WindowsGetStringRawBuffer(str, &len);
+    return wxString(wstr, len);
+}
+
 // ----------------------------------------------------------------------------
 // Module ensuring all global/singleton objects are destroyed on shutdown.
 // ----------------------------------------------------------------------------
@@ -257,6 +286,7 @@ private:
 };
 
 wxIMPLEMENT_DYNAMIC_CLASS(RTModule, wxModule);
+
 
 } // namespace wxWinRT
 
