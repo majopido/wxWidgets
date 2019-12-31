@@ -19,9 +19,7 @@
 #include "wx/webview.h"
 #include "wx/msw/private/comptr.h"
 
-#import <wx/msw/webview2/webview2.tlb>
 #include <wx/msw/webview2/webview2.h>
-// #include <Windows.Web.UI.h>
 #include <Windows.Web.UI.Interop.h>
 
 
@@ -153,6 +151,11 @@ private:
     static void Uninitalize();
 
     friend class wxWebViewEdgeModule;
+
+    wxVector<wxSharedPtr<wxWebViewHistoryItem> > m_historyList;
+    int m_historyPosition;
+    bool m_historyLoadingFromList;
+    bool m_historyEnabled;
 
     wxDECLARE_DYNAMIC_CLASS(wxWebViewEdgeChromium);
 };

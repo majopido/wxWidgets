@@ -24,9 +24,12 @@
 #include "wx/msw/ole/comimpl.h"
 
 #include <wrl/event.h>
-#import "wx/msw/webview2/webview2.tlb"
 
-#pragma comment(lib, "C:/Projekte/ACE/wxWidgets/lib/vc_lib/mswud/wx/msw/webview2/x86/WebView2Loader.dll.lib")
+#if defined(_WIN64)
+#pragma comment(lib, "C:/Projekte/ACE/forkwidgets/wxWidgets/lib/vc_lib/mswud/wx/msw/webview2/x64/WebView2Loader.dll.lib")
+#else
+#pragma comment(lib, "C:/Projekte/ACE/forkwidgets/wxWidgets/lib/vc_lib/mswud/wx/msw/webview2/x86/WebView2Loader.dll.lib")
+#endif
 namespace rt = wxWinRT;
 
 using namespace ABI::Windows::Foundation;
@@ -143,6 +146,10 @@ bool wxWebViewEdgeChromium::Create(wxWindow* parent,
     m_initialized = false;
     m_isBusy = false;
 
+    m_historyLoadingFromList = false;
+    m_historyEnabled = true;
+    m_historyPosition = -1;
+
     if (!wxControl::Create(parent, id, pos, size, style,
         wxDefaultValidator, name))
     {
@@ -238,8 +245,11 @@ void wxWebViewEdgeChromium::InitWebViewCtrl()
                 if (FAILED(args->get_IsSuccess(&isSuccess)))
                     isSuccess = false;
                 m_isBusy = false;
+                PWSTR _uri;
+                sender->get_Source(&_uri);
+                wxString uri(_uri);
                 // TODO: Fill uri string
-                wxString uri = m_pendingURL;
+                // wxString uri = m_pendingURL;
 
                 if (!isSuccess)
                 {
@@ -312,7 +322,28 @@ void wxWebViewEdgeChromium::InitWebViewCtrl()
                     HandleWindowEvent(event);
                 }
                 else
+                {
                     AddPendingEvent(wxWebViewEvent(wxEVT_WEBVIEW_NAVIGATED, GetId(), uri, wxString()));
+                    if (m_historyEnabled && !m_historyLoadingFromList &&
+                        (uri == GetCurrentURL()))
+                        /* ||
+                        (GetCurrentURL().substr(0, 4) == "file" &&
+                            wxFileName::URLToFileName(GetCurrentURL()).GetFullPath() == uri))) */
+                    {
+                        //If we are not at the end of the list, then erase everything
+                        //between us and the end before adding the new page
+                        if (m_historyPosition != static_cast<int>(m_historyList.size()) - 1)
+                        {
+                            m_historyList.erase(m_historyList.begin() + m_historyPosition + 1,
+                                m_historyList.end());
+                        }
+                        wxSharedPtr<wxWebViewHistoryItem> item(new wxWebViewHistoryItem(uri, GetCurrentTitle()));
+                        m_historyList.push_back(item);
+                        m_historyPosition++;
+                    }
+                    //Reset as we are done now
+                    m_historyLoadingFromList = false;
+                }
                 return S_OK;
             })
         .Get(), &m_navigationCompletedToken);
@@ -358,17 +389,42 @@ void wxWebViewEdgeChromium::LoadURL(const wxString& url)
 
 void wxWebViewEdgeChromium::LoadHistoryItem(wxSharedPtr<wxWebViewHistoryItem> item)
 {
-
+    int pos = -1;
+    for (unsigned int i = 0; i < m_historyList.size(); i++)
+    {
+        //We compare the actual pointers to find the correct item
+        if (m_historyList[i].get() == item.get())
+            pos = i;
+    }
+    // wxASSERT_MSG(pos != static_cast<int>(m_impl->m_historyList.size()),
+    //      "invalid history item");
+    m_historyLoadingFromList = true;
+    LoadURL(item->GetUrl());
+    m_historyPosition = pos;
 }
 
 wxVector<wxSharedPtr<wxWebViewHistoryItem> > wxWebViewEdgeChromium::GetBackwardHistory()
 {
-    return NULL;
+    wxVector<wxSharedPtr<wxWebViewHistoryItem> > backhist;
+    //As we don't have std::copy or an iterator constructor in the wxwidgets
+    //native vector we construct it by hand
+    for (int i = 0; i < m_historyPosition; i++)
+    {
+        backhist.push_back(m_historyList[i]);
+    }
+    return backhist;
 }
 
 wxVector<wxSharedPtr<wxWebViewHistoryItem> > wxWebViewEdgeChromium::GetForwardHistory()
 {
-    return NULL;
+    wxVector<wxSharedPtr<wxWebViewHistoryItem> > forwardhist;
+    //As we don't have std::copy or an iterator constructor in the wxwidgets
+    //native vector we construct it by hand
+    for (int i = m_historyPosition + 1; i < static_cast<int>(m_historyList.size()); i++)
+    {
+        forwardhist.push_back(m_historyList[i]);
+    }
+    return forwardhist;
 }
 
 bool wxWebViewEdgeChromium::CanGoForward() const
@@ -404,12 +460,15 @@ void wxWebViewEdgeChromium::GoForward()
 
 void wxWebViewEdgeChromium::ClearHistory()
 {
-
+    m_historyList.clear();
+    m_historyPosition = -1;
 }
 
 void wxWebViewEdgeChromium::EnableHistory(bool enable)
 {
-    UNREFERENCED_PARAMETER(enable);
+    m_historyEnabled = enable;
+    m_historyList.clear();
+    m_historyPosition = -1;
 }
 
 void wxWebViewEdgeChromium::Stop()
@@ -480,12 +539,46 @@ void wxWebViewEdgeChromium::Print()
 
 wxWebViewZoom wxWebViewEdgeChromium::GetZoom() const
 {
-    return wxWEBVIEW_ZOOM_MEDIUM;
+    double old_zoom_factor = 0.0f;
+    m_webView->get_ZoomFactor(&old_zoom_factor);
+    if (old_zoom_factor > 1.7f)
+        return wxWEBVIEW_ZOOM_LARGEST;
+    if (old_zoom_factor > 1.3f)
+        return wxWEBVIEW_ZOOM_LARGE;
+    if (old_zoom_factor > 0.8f)
+        return wxWEBVIEW_ZOOM_MEDIUM;
+    if (old_zoom_factor > 0.6f)
+        return wxWEBVIEW_ZOOM_SMALL;
+    return wxWEBVIEW_ZOOM_TINY;
 }
 
 void wxWebViewEdgeChromium::SetZoom(wxWebViewZoom zoom)
 {
-    UNREFERENCED_PARAMETER(zoom);
+    double old_zoom_factor = 0.0f;
+    m_webView->get_ZoomFactor(&old_zoom_factor);
+    double zoom_factor = 1.0f;
+    switch (zoom)
+    {
+    case wxWEBVIEW_ZOOM_LARGEST:
+        zoom_factor = 2.0f;
+        break;
+    case wxWEBVIEW_ZOOM_LARGE:
+        zoom_factor = 1.5f;
+        break;
+    case wxWEBVIEW_ZOOM_MEDIUM:
+        zoom_factor = 1.0f;
+        break;
+    case wxWEBVIEW_ZOOM_SMALL:
+        zoom_factor = 0.75f;
+        break;
+    case wxWEBVIEW_ZOOM_TINY:
+        zoom_factor = 0.5f;
+        break;
+    default:
+        break;
+    }
+    m_webView->put_ZoomFactor(zoom_factor);
+    // UNREFERENCED_PARAMETER(zoom);
 }
 
 bool wxWebViewEdgeChromium::CanCut() const
