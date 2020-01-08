@@ -34,6 +34,20 @@ endif()
 
 if(APPLE)
     wx_lib_link_libraries(webview PUBLIC "-framework WebKit")
+elseif(WXMSW)    
+    if ( ${CMAKE_SIZEOF_VOID_P} EQUAL 4)
+    wx_lib_link_libraries(webview PUBLIC "${PROJECT_SOURCE_DIR}/lib/vc_lib/mswud/wx/msw/webview2/x86/WebView2Loader.dll.lib")
+    add_custom_command(TARGET webview POST_BUILD
+        COMMAND  ${CMAKE_COMMAND} -E copy
+        "${PROJECT_SOURCE_DIR}/lib/vc_lib/mswud/wx/msw/webview2/x86/WebView2Loader.dll"
+        $<TARGET_FILE_DIR:webview>/"WebView2Loader.dll")
+    else()
+    wx_lib_link_libraries(webview PUBLIC "${PROJECT_SOURCE_DIR}/lib/vc_lib/mswud/wx/msw/webview2/x64/WebView2Loader.dll.lib")
+    add_custom_command(TARGET webview POST_BUILD
+        COMMAND  ${CMAKE_COMMAND} -E copy
+        "${PROJECT_SOURCE_DIR}/lib/vc_lib/mswud/wx/msw/webview2/x64/WebView2Loader.dll"
+        $<TARGET_FILE_DIR:webview>/"WebView2Loader.dll")
+    endif()
 elseif(WXGTK)
     if(LIBSOUP_FOUND)
         wx_lib_include_directories(webview PUBLIC ${LIBSOUP_INCLUDE_DIRS})

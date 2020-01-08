@@ -25,11 +25,8 @@
 
 #include <wrl/event.h>
 
-#if defined(_WIN64)
-#pragma comment(lib, "C:/Projekte/ACE/forkwidgets/wxWidgets/lib/vc_lib/mswud/wx/msw/webview2/x64/WebView2Loader.dll.lib")
-#else
-#pragma comment(lib, "C:/Projekte/ACE/forkwidgets/wxWidgets/lib/vc_lib/mswud/wx/msw/webview2/x86/WebView2Loader.dll.lib")
-#endif
+#include "wx/filename.h"
+
 namespace rt = wxWinRT;
 
 using namespace ABI::Windows::Foundation;
@@ -210,7 +207,7 @@ void wxWebViewEdgeChromium::InitWebViewCtrl()
 
                 if (!event.IsAllowed())
                     args->put_Cancel(true);
-                
+
                 return S_OK;
             })
         .Get(), &m_navigationStartingToken);
@@ -223,14 +220,13 @@ void wxWebViewEdgeChromium::InitWebViewCtrl()
                 PWSTR uri;
                 sender->get_Source(&uri);
                 wxString evtURL(uri);
-                /*if (wcscmp(uri.get(), L"about:blank") == 0)
+                if (evtURL.Cmp(L"about:blank") == 0)              
                 {
-                    uri = wil::make_cotaskmem_string(L"");
+                    evtURL = L"";                    
                 }
-                */
+                
                 // AddPendingEvent(wxWebViewEvent(wxEVT_WEBVIEW_NAVIGATED, GetId(), uri, wxString()));
                 // SetWindowText(m_toolbar->addressBarWindow, uri.get());
-
                 return S_OK;
             })
         .Get(),
@@ -248,8 +244,6 @@ void wxWebViewEdgeChromium::InitWebViewCtrl()
                 PWSTR _uri;
                 sender->get_Source(&_uri);
                 wxString uri(_uri);
-                // TODO: Fill uri string
-                // wxString uri = m_pendingURL;
 
                 if (!isSuccess)
                 {
@@ -274,49 +268,11 @@ void wxWebViewEdgeChromium::InitWebViewCtrl()
                                 WX_ERROR2_CASE(WEBVIEW2_WEB_ERROR_STATUS_CONNECTION_ABORTED, wxWEBVIEW_NAV_ERR_CONNECTION)
                                 WX_ERROR2_CASE(WEBVIEW2_WEB_ERROR_STATUS_CONNECTION_RESET, wxWEBVIEW_NAV_ERR_CONNECTION)
                                 WX_ERROR2_CASE(WEBVIEW2_WEB_ERROR_STATUS_DISCONNECTED, wxWEBVIEW_NAV_ERR_CONNECTION)
-                                // WX_ERROR_CASE(WebErrorStatus_HttpToHttpsOnRedirection, wxWEBVIEW_NAV_ERR_SECURITY)
-                                // WX_ERROR_CASE(WebErrorStatus_HttpsToHttpOnRedirection, wxWEBVIEW_NAV_ERR_SECURITY)
                                 WX_ERROR2_CASE(WEBVIEW2_WEB_ERROR_STATUS_CANNOT_CONNECT, wxWEBVIEW_NAV_ERR_CONNECTION)
                                 WX_ERROR2_CASE(WEBVIEW2_WEB_ERROR_STATUS_HOST_NAME_NOT_RESOLVED, wxWEBVIEW_NAV_ERR_CONNECTION)
                                 WX_ERROR2_CASE(WEBVIEW2_WEB_ERROR_STATUS_OPERATION_CANCELED, wxWEBVIEW_NAV_ERR_USER_CANCELLED)
                                 WX_ERROR2_CASE(WEBVIEW2_WEB_ERROR_STATUS_REDIRECT_FAILED, wxWEBVIEW_NAV_ERR_OTHER)
                                 WX_ERROR2_CASE(WEBVIEW2_WEB_ERROR_STATUS_UNEXPECTED_ERROR, wxWEBVIEW_NAV_ERR_OTHER)
-                                // WX_ERROR_CASE(WebErrorStatus_UnexpectedStatusCode, wxWEBVIEW_NAV_ERR_OTHER)
-                                // WX_ERROR_CASE(WebErrorStatus_UnexpectedRedirection, wxWEBVIEW_NAV_ERR_OTHER)
-                                // WX_ERROR_CASE(WebErrorStatus_UnexpectedClientError, wxWEBVIEW_NAV_ERR_OTHER)
-                                // WX_ERROR_CASE(WebErrorStatus_UnexpectedServerError, wxWEBVIEW_NAV_ERR_OTHER)
-
-                                
-
-                                // 400 - Error codes
-                                /*
-                                WX_ERROR_CASE(WebErrorStatus_BadRequest, wxWEBVIEW_NAV_ERR_REQUEST)
-                                WX_ERROR_CASE(WebErrorStatus_Unauthorized, wxWEBVIEW_NAV_ERR_AUTH)
-                                WX_ERROR_CASE(WebErrorStatus_PaymentRequired, wxWEBVIEW_NAV_ERR_OTHER)
-                                WX_ERROR_CASE(WebErrorStatus_Forbidden, wxWEBVIEW_NAV_ERR_AUTH)
-                                WX_ERROR_CASE(WebErrorStatus_NotFound, wxWEBVIEW_NAV_ERR_NOT_FOUND)
-                                WX_ERROR_CASE(WebErrorStatus_MethodNotAllowed, wxWEBVIEW_NAV_ERR_REQUEST)
-                                WX_ERROR_CASE(WebErrorStatus_NotAcceptable, wxWEBVIEW_NAV_ERR_OTHER)
-                                WX_ERROR_CASE(WebErrorStatus_ProxyAuthenticationRequired, wxWEBVIEW_NAV_ERR_AUTH)
-                                WX_ERROR_CASE(WebErrorStatus_RequestTimeout, wxWEBVIEW_NAV_ERR_CONNECTION)
-                                WX_ERROR_CASE(WebErrorStatus_Conflict, wxWEBVIEW_NAV_ERR_REQUEST)
-                                WX_ERROR_CASE(WebErrorStatus_Gone, wxWEBVIEW_NAV_ERR_NOT_FOUND)
-                                WX_ERROR_CASE(WebErrorStatus_LengthRequired, wxWEBVIEW_NAV_ERR_REQUEST)
-                                WX_ERROR_CASE(WebErrorStatus_PreconditionFailed, wxWEBVIEW_NAV_ERR_REQUEST)
-                                WX_ERROR_CASE(WebErrorStatus_RequestEntityTooLarge, wxWEBVIEW_NAV_ERR_REQUEST)
-                                WX_ERROR_CASE(WebErrorStatus_RequestUriTooLong, wxWEBVIEW_NAV_ERR_REQUEST)
-                                WX_ERROR_CASE(WebErrorStatus_UnsupportedMediaType, wxWEBVIEW_NAV_ERR_REQUEST)
-                                WX_ERROR_CASE(WebErrorStatus_RequestedRangeNotSatisfiable, wxWEBVIEW_NAV_ERR_REQUEST)
-                                WX_ERROR_CASE(WebErrorStatus_ExpectationFailed, wxWEBVIEW_NAV_ERR_OTHER)
-
-                                // 500 - Error codes
-                                WX_ERROR_CASE(WebErrorStatus_InternalServerError, wxWEBVIEW_NAV_ERR_CONNECTION)
-                                WX_ERROR_CASE(WebErrorStatus_NotImplemented, wxWEBVIEW_NAV_ERR_CONNECTION)
-                                WX_ERROR_CASE(WebErrorStatus_BadGateway, wxWEBVIEW_NAV_ERR_CONNECTION)
-                                WX_ERROR_CASE(WebErrorStatus_ServiceUnavailable, wxWEBVIEW_NAV_ERR_CONNECTION)
-                                WX_ERROR_CASE(WebErrorStatus_GatewayTimeout, wxWEBVIEW_NAV_ERR_CONNECTION)
-                                WX_ERROR_CASE(WebErrorStatus_HttpVersionNotSupported, wxWEBVIEW_NAV_ERR_REQUEST)
-                                */
                         }
                     }
                     HandleWindowEvent(event);
@@ -325,13 +281,12 @@ void wxWebViewEdgeChromium::InitWebViewCtrl()
                 {
                     AddPendingEvent(wxWebViewEvent(wxEVT_WEBVIEW_NAVIGATED, GetId(), uri, wxString()));
                     if (m_historyEnabled && !m_historyLoadingFromList &&
-                        (uri == GetCurrentURL()))
-                        /* ||
+                        (uri == GetCurrentURL()) ||
                         (GetCurrentURL().substr(0, 4) == "file" &&
-                            wxFileName::URLToFileName(GetCurrentURL()).GetFullPath() == uri))) */
+                            wxFileName::URLToFileName(GetCurrentURL()).GetFullPath() == uri))
                     {
-                        //If we are not at the end of the list, then erase everything
-                        //between us and the end before adding the new page
+                        // If we are not at the end of the list, then erase everything
+                        // between us and the end before adding the new page
                         if (m_historyPosition != static_cast<int>(m_historyList.size()) - 1)
                         {
                             m_historyList.erase(m_historyList.begin() + m_historyPosition + 1,
@@ -396,8 +351,7 @@ void wxWebViewEdgeChromium::LoadHistoryItem(wxSharedPtr<wxWebViewHistoryItem> it
         if (m_historyList[i].get() == item.get())
             pos = i;
     }
-    // wxASSERT_MSG(pos != static_cast<int>(m_impl->m_historyList.size()),
-    //      "invalid history item");
+    // TODO: wxASSERT_MSG(pos != static_cast<int>(m_impl->m_historyList.size()), "invalid history item");
     m_historyLoadingFromList = true;
     LoadURL(item->GetUrl());
     m_historyPosition = pos;
@@ -429,33 +383,48 @@ wxVector<wxSharedPtr<wxWebViewHistoryItem> > wxWebViewEdgeChromium::GetForwardHi
 
 bool wxWebViewEdgeChromium::CanGoForward() const
 {
-    BOOL result = false;
-    if (m_webView && SUCCEEDED(m_webView->get_CanGoForward(&result)))
-        return result;
+    if (m_historyEnabled)
+        return m_historyPosition != static_cast<int>(m_historyList.size()) - 1;
     else
         return false;
+
+    /*
+        BOOL result = false;
+        if (m_webView && SUCCEEDED(m_webView->get_CanGoForward(&result)))
+            return result;
+        else
+            return false;
+    */
 }
 
 bool wxWebViewEdgeChromium::CanGoBack() const
 {
-    BOOL result = false;
-
-    if (m_webView && SUCCEEDED(m_webView->get_CanGoBack(&result)))
-        return result;
+    if (m_historyEnabled)
+        return m_historyPosition > 0;
     else
         return false;
+    /*
+        BOOL result = false;
+
+        if (m_webView && SUCCEEDED(m_webView->get_CanGoBack(&result)))
+            return result;
+        else
+            return false;
+    */
 }
 
 void wxWebViewEdgeChromium::GoBack()
 {
-    if (m_webView)
-        m_webView->GoBack();
+    LoadHistoryItem(m_historyList[m_historyPosition - 1]);
+    /* if (m_webView)
+        m_webView->GoBack(); */
 }
 
 void wxWebViewEdgeChromium::GoForward()
 {
-    if (m_webView)
-        m_webView->GoForward();
+    LoadHistoryItem(m_historyList[m_historyPosition + 1]);
+    /* if (m_webView)
+        m_webView->GoForward(); */
 }
 
 void wxWebViewEdgeChromium::ClearHistory()
@@ -529,7 +498,7 @@ wxWebViewZoomType wxWebViewEdgeChromium::GetZoomType() const
 
 bool wxWebViewEdgeChromium::CanSetZoomType(wxWebViewZoomType) const
 {
-    return true;
+    return false;
 }
 
 void wxWebViewEdgeChromium::Print()
@@ -639,9 +608,9 @@ long wxWebViewEdgeChromium::Find(const wxString& text, int flags)
 }
 
 //Editing functions
-void wxWebViewEdgeChromium::SetEditable(bool enable)
+void wxWebViewEdgeChromium::SetEditable(bool WXUNUSED(enable))
 {
-    UNREFERENCED_PARAMETER(enable);
+
 }
 
 bool wxWebViewEdgeChromium::IsEditable() const
